@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'dart:math';
 
 import 'package:crypto_trader/models/market_model.dart';
+import 'package:crypto_trader/models/my_account_model.dart';
 import 'package:crypto_trader/services/api_service.dart';
 import 'package:crypto_trader/utils/generate_dialogs.dart';
 import 'package:flex_color_scheme/flex_color_scheme.dart';
@@ -63,7 +64,7 @@ class HomeScreen extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   Text(
-                    '자금: ${tradeInfo.total.toString()} 원',
+                    '자금: ${tradeInfo.amount.toString()} 원',
                   ),
                   Text(
                     '이익: ${tradeInfo.profit.toString()} 원',
@@ -256,9 +257,10 @@ class HomeScreen extends ConsumerWidget {
                           height: 50.0,
                           child: ListTile(
                             dense: true,
-                            title: Text(tickProvider[index].market ?? 'none'),
-                            subtitle:
-                                Text("${tickProvider[index].tradePrice ?? 0}"),
+                            title:
+                                Text(tickProvider[0][index].market ?? 'none'),
+                            subtitle: Text(
+                                "${tickProvider[0][index].tradePrice ?? 0} 원 - ${tickProvider[0][index].tradeVolume}"),
                           ),
                         );
                       }),
@@ -293,53 +295,31 @@ class ListBoxWidget extends StatelessWidget {
   }
 }
 
-class TradeInfoNotifier extends StateNotifier<TradeState> {
-  TradeInfoNotifier() : super(const TradeState());
-
-  void updateTotal(double total) {
-    state = state.copyWith(total: total);
-  }
-
-  void updateProfit(double profit) {
-    state = state.copyWith(profit: profit);
-  }
-
-  void updateProfitPercentage(double profitPercentage) {
-    state = state.copyWith(profitPercentage: profitPercentage);
-  }
-
-  void randomUpdate() {
-    final random = Random();
-    final profit =
-        random.nextDouble() * 1000; // Random profit between 0 and 1000
-    final profitPercentage =
-        random.nextDouble() * 100; // Random profit percentage between 0 and 100
-    updateProfit(profit.toInt().toDouble());
-    updateProfitPercentage(profitPercentage.toInt().toDouble());
-  }
-}
-
 @immutable
-class TradeState {
-  final double total;
+class HoldingState {
+  final double amount;
   final double profit;
   final double profitPercentage;
+  final MyAccountModel? holding;
 
-  const TradeState({
-    this.total = 100.0,
+  const HoldingState({
+    this.amount = 100.0,
     this.profit = 10.0,
     this.profitPercentage = 5.0,
+    this.holding,
   });
 
-  TradeState copyWith({
-    double? total,
+  HoldingState copyWith({
+    double? amount,
     double? profit,
     double? profitPercentage,
+    MyAccountModel? holding,
   }) {
-    return TradeState(
-      total: total ?? this.total,
+    return HoldingState(
+      amount: amount ?? this.amount,
       profit: profit ?? this.profit,
       profitPercentage: profitPercentage ?? this.profitPercentage,
+      holding: holding ?? this.holding,
     );
   }
 }

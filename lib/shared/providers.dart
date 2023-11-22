@@ -1,8 +1,10 @@
 import 'dart:async';
-import 'dart:developer';
+import 'dart:developer' as developer;
+import 'dart:math';
 
 import 'package:crypto_trader/models/log_entry_model.dart';
 import 'package:crypto_trader/models/market_model.dart';
+import 'package:crypto_trader/models/my_account_model.dart';
 import 'package:crypto_trader/models/top_market_list_item.dart';
 import 'package:crypto_trader/models/top_market_model.dart';
 import 'package:crypto_trader/models/trade_tick_model.dart';
@@ -10,9 +12,63 @@ import 'package:crypto_trader/screens/home_screen.dart';
 import 'package:crypto_trader/services/api_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+// Constants to be used in the trading strategy
+const BUY_THRESHOLD =
+    0.05; // percentage change in price to trigger a buy signal
+const SELL_THRESHOLD =
+    -0.03; // percentage change in price to trigger a sell signal
+const STOP_LOSS_THRESHOLD =
+    -0.1; // percentage change in price to trigger a stop-loss sell
+
 final logListProvider = Provider<List<LogEntryModel>>((ref) => []);
-final tradeInfoProvider = StateNotifierProvider<TradeInfoNotifier, TradeState>(
-    (ref) => TradeInfoNotifier());
+final tradeInfoProvider =
+    StateNotifierProvider<TradeInfoNotifier, HoldingState>((ref) {
+  final topMarketList = ref.read(topListProvider.notifier);
+
+  return TradeInfoNotifier();
+});
+
+class TradeInfoNotifier extends StateNotifier<HoldingState> {
+  TradeInfoNotifier() : super(const HoldingState());
+
+  void updateAmount(double amount) {
+    state = state.copyWith(amount: amount);
+  }
+
+  void updateProfit(double profit) {
+    state = state.copyWith(profit: profit);
+  }
+
+  void updateProfitPercentage(double profitPercentage) {
+    state = state.copyWith(profitPercentage: profitPercentage);
+  }
+
+  void trade() {
+    final random = Random();
+    final profit =
+        random.nextDouble() * 1000; // Random profit between 0 and 1000
+    final profitPercentage =
+        random.nextDouble() * 100; // Random profit percentage between 0 and 100
+    updateProfit(profit.toInt().toDouble());
+    updateProfitPercentage(profitPercentage.toInt().toDouble());
+  }
+
+  bool checkBuySignal(ticker, prevPrice, curPrice) {
+    final priceChange = (curPrice - prevPrice) / prevPrice;
+
+    return priceChange > BUY_THRESHOLD ? true : false;
+  }
+
+  bool checkSellSignal(ticker, curPrice, buyPrice) {
+    final priceChange = (curPrice - buyPrice) / buyPrice;
+
+    return priceChange < SELL_THRESHOLD
+        ? true
+        : priceChange < STOP_LOSS_THRESHOLD
+            ? true
+            : false;
+  }
+}
 
 final marketListProvider =
     StateNotifierProvider<MarketListNotifier, Map<String, MarketModel>>((ref) {
@@ -51,14 +107,15 @@ final topListProvider =
 });
 
 class TopListNotifier extends StateNotifier<TopMarketList> {
-  bool _mounted = true;
+  @override
+  bool mounted = true;
   List<MarketModel> topMarketList = [];
   TopListNotifier(Map<String, MarketModel> marketMap) : super(TopMarketList()) {
     fetchTopList(marketMap);
   }
   @override
   void dispose() {
-    _mounted = false;
+    mounted = false;
     super.dispose();
   }
 
@@ -81,35 +138,35 @@ class TopListNotifier extends StateNotifier<TopMarketList> {
       }
       map[item.currency] = item;
     }
-    if (_mounted) {
+    if (mounted) {
       updateTopList(map);
       updateMarketList(marketMap);
-      log('mounted');
+      developer.log('mounted');
     }
     final tempMap = topMarketList;
-    log('tempMap: $tempMap');
+    developer.log('tempMap: $tempMap');
     return tempMap;
   }
 }
 
 final tradeTickProvider =
-    StateNotifierProvider<TradeTickNotifier, List<TradeTickModel>>((ref) {
+    StateNotifierProvider<TradeTickNotifier, List<List<TradeTickModel>>>((ref) {
   final topListMap = ref.watch(topListProvider);
   return TradeTickNotifier(topListMap);
 });
 
-class TradeTickNotifier extends StateNotifier<List<TradeTickModel>> {
+class TradeTickNotifier extends StateNotifier<List<List<TradeTickModel>>> {
   TradeTickNotifier(TopMarketList topList) : super([]) {
     fetchTradeTick(topList.marketMap);
   }
 
   Future<void> fetchTradeTick(Map<String, MarketModel> marketMap) async {
-    // log('hi: ${topListMap.length}');
+    // developer.log('hi: ${topListMap.length}');
     if (marketMap.isNotEmpty) {
-      log('@@@: ${marketMap.values.first.toJson()}');
+      developer.log('@@@: ${marketMap.values.first.toJson()}');
       final list = await ApiServices().fetchTradeTicks(marketMap.values.first);
       //   log('tradeTick: ${list.first.toJson()}');
-      state = list;
+      state = [...state, list];
     }
   }
 }
@@ -142,7 +199,7 @@ class TimerNotifier extends StateNotifier<int> {
     // startTimer();
   }
 
-  Timer? _timer;
+  Timer? timer;
   bool isRunning = false;
 
   @override
@@ -152,14 +209,14 @@ class TimerNotifier extends StateNotifier<int> {
 
   void startTimer({int interval = 3}) {
     isRunning = true;
-    _timer = Timer.periodic(Duration(seconds: interval), (_) async {
+    timer = Timer.periodic(Duration(seconds: interval), (_) async {
       if (mounted) {
         isRunning = true;
 
         state++;
       }
 
-      tradeInfo.randomUpdate();
+      tradeInfo.trade();
       await marketListNotifier.fetchMarketList();
       final temp = await topListNotifier.fetchTopList(marketList);
 
@@ -169,7 +226,7 @@ class TimerNotifier extends StateNotifier<int> {
 
   void pauseTimer() {
     isRunning = false;
-    _timer?.cancel();
+    timer?.cancel();
   }
 
   void resetTimer() {

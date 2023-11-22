@@ -51,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     await UserSecureStorage.setAccessKey(tempAccessKey);
     await UserSecureStorage.setSecretKey(tempSecretKey);
-    // getJWTToken();
+    getJWTToken();
     // await UtilsDialogs.closeDialogNoReturn(context);
     context.goNamed('home');
   }
