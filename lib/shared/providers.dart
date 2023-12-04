@@ -12,13 +12,11 @@ import 'package:crypto_trader/screens/home_screen.dart';
 import 'package:crypto_trader/services/api_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// Constants to be used in the trading strategy
-const BUY_THRESHOLD =
-    0.05; // percentage change in price to trigger a buy signal
-const SELL_THRESHOLD =
-    -0.03; // percentage change in price to trigger a sell signal
-const STOP_LOSS_THRESHOLD =
-    -0.1; // percentage change in price to trigger a stop-loss sell
+//Define MACD and RSI parameters
+final fast_period = 12;
+final slow_period = 26;
+final signal_period = 9;
+final rsi_period = 14;
 
 final logListProvider = Provider<List<LogEntryModel>>((ref) => []);
 final tradeInfoProvider =
@@ -53,11 +51,7 @@ class TradeInfoNotifier extends StateNotifier<HoldingState> {
     updateProfitPercentage(profitPercentage.toInt().toDouble());
   }
 
-  bool checkBuySignal(ticker, prevPrice, curPrice) {
-    final priceChange = (curPrice - prevPrice) / prevPrice;
-
-    return priceChange > BUY_THRESHOLD ? true : false;
-  }
+  bool checkBuySignal(ticker, prevPrice, curPrice) {}
 
   bool checkSellSignal(ticker, curPrice, buyPrice) {
     final priceChange = (curPrice - buyPrice) / buyPrice;
